@@ -1,4 +1,4 @@
-// OpenWeatherMap API Key (استبدل هذا المفتاح بمفتاحك الشخصي بعد التسجيل في موقع OpenWeatherMap)
+// OpenWeatherMap API Key
 const API_KEY = '60d4a32584594bbff7c9524cfad639ec';
 
 // Initialize Map centered on Khartoum, Sudan (Phase 1)
@@ -71,17 +71,25 @@ weatherForm.addEventListener('submit', async (e) => {
         const windSpeed = weatherData.wind.speed;
         const name = weatherData.name;
 
-        const popupContent = `
-            <div style="text-align: center; min-width: 150px;">
-                <h6 style="margin-bottom: 5px; font-weight: bold;">${name}</h6>
-                <img src="${iconUrl}" alt="Weather Icon" style="width: 50px; height: 50px; margin: 0;">
-                <h3 style="margin: 0; font-weight: bold;">${temp}°C</h3>
-                <p style="margin: 5px 0; text-transform: capitalize; font-size: 0.9rem;">${description}</p>
-                <hr style="margin: 5px 0;">
-                <small style="display: block; font-size: 0.8rem; color: #555;">Humidity: ${humidity}% | Wind: ${windSpeed} m/s</small>
-                <button onclick="shareWeather('${name}', '${temp}', '${description}')" class="btn btn-sm btn-primary mt-2" style="font-size: 0.75rem;">Share Weather</button>
-            </div>
+        const popupContent = document.createElement('div');
+        popupContent.style.textAlign = 'center';
+        popupContent.style.minWidth = '150px';
+        popupContent.innerHTML = `
+            <h6 style="margin-bottom: 5px; font-weight: bold;">${name}</h6>
+            <img src="${iconUrl}" alt="Weather Icon" style="width: 50px; height: 50px; margin: 0;">
+            <h3 style="margin: 0; font-weight: bold;">${temp}°C</h3>
+            <p style="margin: 5px 0; text-transform: capitalize; font-size: 0.9rem;">${description}</p>
+            <hr style="margin: 5px 0;">
+            <small style="display: block; font-size: 0.8rem; color: #555;">Humidity: ${humidity}% | Wind: ${windSpeed} m/s</small>
+            <button id="share-btn" class="btn btn-sm btn-primary mt-2" style="font-size: 0.75rem;">Share Weather</button>
         `;
+
+        // ربط حدث الضغط برمجياً لضمان الاستجابة الفورية وفتح نافذة النسخ
+        const shareBtn = popupContent.querySelector('#share-btn');
+        shareBtn.addEventListener('click', () => {
+            const shareText = `Current weather in ${name}: ${temp}°C, ${description}. Checked via WeatherMap SPA!`;
+            window.prompt("نسخ تفاصيل الطقس (حدد النص واضغط Ctrl+C ثم موافق):", shareText);
+        });
 
         currentMarker.bindPopup(popupContent).openPopup();
 
@@ -113,23 +121,3 @@ function showAlert(message) {
 function clearAlerts() {
     alertContainer.innerHTML = '';
 }
-
-// Global Share function for the InfoWindow button (Bonus Feature)
-window.shareWeather = function(city, temp, desc) {
-    const shareText = `Current weather in ${city}: ${temp}°C, ${desc}. Checked via WeatherMap SPA!`;
-    if (navigator.share) {
-        navigator.share({
-            title: 'Weather Info',
-            text: shareText
-        }).catch(() => {});
-    } else {
-        navigator.clipboard.writeText(shareText);
-        alert('Weather info copied to clipboard!');
-    }
-};"// v2"  
-"// v3"  
-"// v4"  
-"// v5"  
-"// v6"  
-"// v7"  
-"// v8"  
