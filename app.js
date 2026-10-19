@@ -4,8 +4,8 @@ const API_KEY = '60d4a32584594bbff7c9524cfad639ec';
 // Initialize Map centered on Khartoum, Sudan (Phase 1)
 const map = L.map('map').setView([15.5007, 32.5599], 6);
 
-// Add OpenStreetMap tile layer
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+// Add standard OpenStreetMap tile layer (Free, stable, no API key required)
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
@@ -84,11 +84,36 @@ weatherForm.addEventListener('submit', async (e) => {
             <button id="share-btn" class="btn btn-sm btn-primary mt-2" style="font-size: 0.75rem;">Share Weather</button>
         `;
 
-        // ربط حدث الضغط برمجياً لضمان الاستجابة الفورية وفتح نافذة النسخ
+        // ربط زر المشاركة بطريقة الـ textarea المضمونة 100%
         const shareBtn = popupContent.querySelector('#share-btn');
         shareBtn.addEventListener('click', () => {
             const shareText = `Current weather in ${name}: ${temp}°C, ${description}. Checked via WeatherMap SPA!`;
-            window.prompt("نسخ تفاصيل الطقس (حدد النص واضغط Ctrl+C ثم موافق):", shareText);
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = shareText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    shareBtn.textContent = 'Copied Successfully!';
+                    shareBtn.classList.remove('btn-primary');
+                    shareBtn.classList.add('btn-success');
+                    
+                    setTimeout(() => {
+                        shareBtn.textContent = 'Share Weather';
+                        shareBtn.classList.remove('btn-success');
+                        shareBtn.classList.add('btn-primary');
+                    }, 2000);
+                } else {
+                    alert('Copy failed.');
+                }
+            } catch (err) {
+                alert('Browser does not support automatic copying.');
+            }
+            
+            document.body.removeChild(textarea);
         });
 
         currentMarker.bindPopup(popupContent).openPopup();
