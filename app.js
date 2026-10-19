@@ -126,4 +126,4 @@ window.shareWeather = function(city, temp, desc) {
         navigator.clipboard.writeText(shareText);
         alert('Weather info copied to clipboard!');
     }
-};
+};"// v2"  
