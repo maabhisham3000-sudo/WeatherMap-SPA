@@ -132,3 +132,4 @@ window.shareWeather = function(city, temp, desc) {
 "// v5"  
 "// v6"  
 "// v7"  
+"// v8"  
