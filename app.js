@@ -2,7 +2,7 @@
 const API_KEY = '60d4a32584594bbff7c9524cfad639ec';
 
 // Initialize Map centered on Khartoum, Sudan (Phase 1)
-const map = L.map('map').setView([15.5007, 32.5599], 6);
+const map = L.map('map').setView([15.5007, 32.5599], 10);
 
 // Add standard OpenStreetMap tile layer (Free, stable, no API key required)
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -17,59 +17,57 @@ const weatherForm = document.getElementById('weather-form');
 const cityInput = document.getElementById('city-input');
 const spinner = document.getElementById('loading-spinner');
 const alertContainer = document.getElementById('alert-container');
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+const forecastContainer = document.getElementById('forecast-container');
 
-// Form Submit Event Listener (Prevent Default behavior - SPA Rule)
-weatherForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const cityName = cityInput.value.trim();
-    if (!cityName) return;
+// Dark Mode Toggle Logic
+darkModeToggle.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    if (document.body.classList.contains('dark-mode')) {
+        darkModeToggle.textContent = '☀️ Light Mode';
+        darkModeToggle.classList.replace('btn-outline-dark', 'btn-outline-light');
+    } else {
+        darkModeToggle.textContent = '🌙 Dark Mode';
+        darkModeToggle.classList.replace('btn-outline-light', 'btn-outline-dark');
+    }
+});
 
+// Core function to fetch weather and 5-day forecast by Coordinates
+async function fetchWeatherByCoords(lat, lon, customCityName = null) {
     clearAlerts();
     showSpinner(true);
+    forecastContainer.innerHTML = '';
 
     try {
-        // Phase 2: Asynchronous Geocoding using Nominatim API
-        const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}`;
-        const geoResponse = await fetch(geoUrl);
-        const geoData = await geoResponse.json();
+        let name = customCityName;
 
-        if (!geoData || geoData.length === 0) {
-            throw new Error(`Location "${cityName}" not found. Please check the spelling.`);
-        }
-
-        const lat = parseFloat(geoData[0].lat);
-        const lon = parseFloat(geoData[0].lon);
-
-        // Phase 3: OpenWeatherMap Fetch API
+        // Current Weather Fetch API
         const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`;
         const weatherResponse = await fetch(weatherUrl);
-        
-        if (!weatherResponse.ok) {
-            throw new Error('Failed to fetch weather data. Check your API key or network.');
-        }
-
+        if (!weatherResponse.ok) throw new Error('Failed to fetch current weather data.');
         const weatherData = await weatherResponse.json();
-
-        // Phase 4: Map Center & Marker Animation
-        map.setView([lat, lon], 12, {
-            animate: true,
-            duration: 1.5
-        });
-
-        if (currentMarker) {
-            map.removeLayer(currentMarker);
+        
+        if (!name) {
+            name = weatherData.name;
         }
 
+        // 5-Day Forecast Fetch API
+        const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`;
+        const forecastResponse = await fetch(forecastUrl);
+        if (!forecastResponse.ok) throw new Error('Failed to fetch forecast data.');
+        const forecastData = await forecastResponse.json();
+
+        // Map Center & Marker Animation
+        map.setView([lat, lon], 12, { animate: true, duration: 1.5 });
+        if (currentMarker) map.removeLayer(currentMarker);
         currentMarker = L.marker([lat, lon]).addTo(map);
 
-        // Phase 5: Info Window Render & Share Feature
         const temp = Math.round(weatherData.main.temp);
         const description = weatherData.weather[0].description;
         const iconCode = weatherData.weather[0].icon;
         const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
         const humidity = weatherData.main.humidity;
         const windSpeed = weatherData.wind.speed;
-        const name = weatherData.name;
 
         const popupContent = document.createElement('div');
         popupContent.style.textAlign = 'center';
@@ -84,7 +82,7 @@ weatherForm.addEventListener('submit', async (e) => {
             <button id="share-btn" class="btn btn-sm btn-primary mt-2" style="font-size: 0.75rem;">Share Weather</button>
         `;
 
-        // ربط زر المشاركة بطريقة الـ textarea المضمونة 100%
+        // Share button logic (Real Clipboard Copy Fallback)
         const shareBtn = popupContent.querySelector('#share-btn');
         shareBtn.addEventListener('click', () => {
             const shareText = `Current weather in ${name}: ${temp}°C, ${description}. Checked via WeatherMap SPA!`;
@@ -118,20 +116,83 @@ weatherForm.addEventListener('submit', async (e) => {
 
         currentMarker.bindPopup(popupContent).openPopup();
 
+        // Render 5-Day Forecast Cards
+        const dailyForecasts = forecastData.list.filter(item => item.dt_txt.includes('12:00:00'));
+        
+        dailyForecasts.forEach(day => {
+            const date = new Date(day.dt * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            const dayTemp = Math.round(day.main.temp);
+            const dayDesc = day.weather[0].description;
+            const dayIcon = `https://openweathermap.org/img/wn/${day.weather[0].icon}.png`;
+
+            const card = document.createElement('div');
+            card.className = 'col';
+            card.innerHTML = `
+                <div class="card text-center p-2 shadow-sm h-100 forecast-card">
+                    <small class="text-muted fw-bold">${date}</small>
+                    <img src="${dayIcon}" alt="Icon" class="mx-auto" style="width: 45px; height: 45px;">
+                    <span class="fw-bold fs-5">${dayTemp}°C</span>
+                    <small class="text-muted text-capitalize" style="font-size: 0.75rem;">${dayDesc}</small>
+                </div>
+            `;
+            forecastContainer.appendChild(card);
+        });
+
     } catch (error) {
         showAlert(error.message);
     } finally {
         showSpinner(false);
     }
+}
+
+// Function to fetch weather by City Name (Smart Name Extractor)
+async function fetchWeatherByCity(cityName) {
+    clearAlerts();
+    showSpinner(true);
+
+    try {
+        const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}`;
+        const geoResponse = await fetch(geoUrl);
+        const geoData = await geoResponse.json();
+
+        if (!geoData || geoData.length === 0) {
+            throw new Error(`Location "${cityName}" not found. Please check the spelling.`);
+        }
+
+        const lat = parseFloat(geoData[0].lat);
+        const lon = parseFloat(geoData[0].lon);
+        
+        const fullName = geoData[0].display_name;
+        let parts = fullName.split(',').map(p => p.trim());
+        
+        let cleanName = parts[0];
+        if (/^\d+$/.test(cleanName) && parts.length > 1) {
+            let validPart = parts.find(p => !/^\d+$/.test(p));
+            cleanName = validPart || parts[1] || cityName;
+        } else if (!cleanName || /^\d+$/.test(cleanName)) {
+            cleanName = cityName;
+        }
+
+        await fetchWeatherByCoords(lat, lon, cleanName);
+
+    } catch (error) {
+        showAlert(error.message);
+        showSpinner(false);
+    }
+}
+
+// Form Submit Event Listener
+weatherForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const cityName = cityInput.value.trim();
+    if (!cityName) return;
+    fetchWeatherByCity(cityName);
 });
 
 // Helper Functions for UI states
 function showSpinner(show) {
-    if (show) {
-        spinner.classList.remove('d-none');
-    } else {
-        spinner.classList.add('d-none');
-    }
+    if (show) spinner.classList.remove('d-none');
+    else spinner.classList.add('d-none');
 }
 
 function showAlert(message) {
@@ -146,3 +207,11 @@ function showAlert(message) {
 function clearAlerts() {
     alertContainer.innerHTML = '';
 }
+
+// Default initial marker on Khartoum when page loads
+window.addEventListener('DOMContentLoaded', () => {
+    const khartoumLat = 15.5007;
+    const khartoumLon = 32.5599;
+    currentMarker = L.marker([khartoumLat, khartoumLon]).addTo(map);
+    currentMarker.bindPopup("<b>Khartoum</b><br>Default Location. Search any city to see forecast!").openPopup();
+});
